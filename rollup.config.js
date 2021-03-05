@@ -6,29 +6,42 @@ import livereload from 'rollup-plugin-livereload'
 
 import pkg from './package.json'
 
+/** @type {import('rollup').RollupOptions} */
+let option
+
 const isDev = process.env.ROLLUP_WATCH
 
-const devPlugins = isDev
-  ? [
+if (isDev) {
+  option = {
+    input: 'test/index.ts',
+    output: {
+      file: 'test/index.js',
+    },
+    plugins: [
+      nodeResolve(),
+      commonjs(),
+      typescript({
+        tsconfigOverride: { compilerOptions: { declaration: false } },
+      }),
       serve({
         open: true,
         port: 8000,
-        openPage: '/public/index.html',
+        openPage: '/test/index.html',
       }),
       livereload({
-        watch: 'dist',
+        watch: 'test',
       }),
-    ]
-  : []
-
-/** @type {import('rollup').RollupOptions} */
-const option = {
-  input: 'src/index.ts',
-  output: {
-    file: pkg.module,
-    format: 'es',
-  },
-  plugins: [nodeResolve(), commonjs(), typescript(), ...devPlugins],
+    ],
+  }
+} else {
+  option = {
+    input: 'src/index.ts',
+    output: {
+      file: pkg.module,
+      format: 'es',
+    },
+    plugins: [nodeResolve(), commonjs(), typescript()],
+  }
 }
 
 export default option

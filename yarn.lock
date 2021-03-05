@@ -291,6 +291,11 @@ jsonfile@^4.0.0:
   optionalDependencies:
     graceful-fs "^4.1.6"
 
+konva@^7.2.4:
+  version "7.2.4"
+  resolved "https://registry.npm.taobao.org/konva/download/konva-7.2.4.tgz#cfe9014b7c9cf382c61715f21dc82d4cc5bb6ef7"
+  integrity sha1-z+kBS3yc84LGFxXyHcgtTMW7bvc=
+
 livereload-js@^3.1.0:
   version "3.3.1"
   resolved "https://registry.npm.taobao.org/livereload-js/download/livereload-js-3.3.1.tgz#61f887468086762e61fb2987412cf9d1dda99202"
