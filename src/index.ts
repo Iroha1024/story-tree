@@ -186,6 +186,13 @@ export default class StoryTree {
             },
         })
 
+        const drag = new Konva.Rect({
+            width: canvasWidth,
+            height: canvasHeight,
+            opacity: 0,
+        })
+        group.add(drag)
+
         //x center
         if (stage.width() > canvasWidth) {
             group.setAttrs({
