@@ -18,15 +18,12 @@ interface Node {
 
 interface TreeData {
     uuid: string
-    next: string[]
-    rank: number
+    next: TreeData[]
     x: number
     y: number
     width: number
     height: number
 }
-
-type SortTreeData = Pick<TreeData, 'uuid' | 'next' | 'rank'>
 
 export default class StoryTree {
     scale = 0
@@ -37,13 +34,13 @@ export default class StoryTree {
 
     constructor(option: Option) {
         const { container, width, height, root, padding, gutter } = option
-        const square = this.lineUp(root)
-        const { data, canvasWidth, canvasHeight } = this.setPosition(square, {
+        const { data, canvasWidth, canvasHeight } = this.setPosition(root, {
             width,
             height,
             padding,
             gutter,
         })
+
         this.data = data
         this.stage = new Konva.Stage({
             container,
@@ -54,35 +51,7 @@ export default class StoryTree {
         this.drawPreview(canvasWidth, canvasHeight)
     }
 
-    lineUp(root: Node) {
-        const store: SortTreeData[] = []
-        const transformNode = (node: Node, store: SortTreeData[], rank = 0) => {
-            const sameNode = store.find((item) => item.uuid == node.uuid)
-            if (sameNode && rank >= sameNode.rank) {
-                sameNode.rank = rank
-            } else {
-                store.push({
-                    uuid: node.uuid,
-                    next: node.next.map((item) => item.uuid),
-                    rank,
-                })
-            }
-            node.next.forEach((item) => transformNode(item, store, rank + 1))
-        }
-        transformNode(root, store)
-        const square: SortTreeData[][] = []
-        let index = 0,
-            sum = 0
-        while (store.length != sum) {
-            square[index] = []
-            square[index].push(...store.filter((item) => item.rank == index))
-            sum += square[index].length
-            index++
-        }
-        return square
-    }
-
-    setPosition(square: SortTreeData[][], option: LocateOption) {
+    setPosition(root: Node, option: LocateOption) {
         const nodeWidth = 100,
             nodeHeight = 80
         const { padding, gutter } = option
@@ -93,40 +62,79 @@ export default class StoryTree {
         const gutterX = gutter == undefined ? 0 : typeof gutter == 'number' ? gutter : gutter[0]
         const gutterY = gutter == undefined ? 0 : typeof gutter == 'number' ? gutter : gutter[1]
 
-        const temp: TreeData[] = []
-        let maxCoordinateX = 0
-
-        square.forEach((line, lineIndex) => {
-            line.forEach((item, colIndex) => {
-                const treeData = {
-                    ...item,
-                    x:
-                        (colIndex - line.length / 2) * nodeWidth +
-                        (colIndex - line.length / 2 + 0.5) * gutterX,
-                    y: lineIndex * (nodeHeight + gutterY),
-                    width: nodeWidth,
-                    height: nodeHeight,
+        const transformNode = (node: Node, boundingX = 0, rank = 0) => {
+            node.next.forEach((item, index) => {
+                const { boundingX: dx, offsetX } = transformNode(item, boundingX, rank + 1)
+                console.log('item:', item, 'boundingX:', dx, 'offsetX:', offsetX)
+                if (!Object.prototype.hasOwnProperty.call(item, 'x')) {
+                    Object.assign(item, {
+                        x: dx - offsetX,
+                        width: nodeWidth,
+                        height: nodeHeight,
+                    })
                 }
-                if (treeData.x > maxCoordinateX) {
-                    maxCoordinateX = treeData.x
+                Object.assign(item, {
+                    y: (rank + 1) * (nodeHeight + gutterY),
+                })
+                if (index != node.next.length - 1) {
+                    boundingX = dx + nodeWidth + gutterX
+                } else {
+                    boundingX = dx
                 }
-                temp.push(treeData)
             })
+            let offsetX = 0
+            if (node.next.length > 1) {
+                offsetX =
+                    ((node.next[node.next.length - 1] as TreeData).x +
+                        (node.next[0] as TreeData).x) /
+                    2
+                offsetX = boundingX - offsetX
+            }
+            return {
+                boundingX,
+                offsetX,
+            }
+        }
+        transformNode(root)
+
+        const x =
+            root.next.length != 0
+                ? (root.next as TreeData[]).reduce((sum, node) => sum + node.x, 0) /
+                  root.next.length
+                : 0
+        Object.assign(root, {
+            x,
+            y: 0,
+            width: nodeWidth,
+            height: nodeHeight,
         })
 
-        maxCoordinateX += nodeWidth
-        const maxCoordinateY = temp[temp.length - 1].y + nodeHeight
+        const data: TreeData[] = []
 
-        const actualCanvasWidth = (paddingX + maxCoordinateX) * 2
-        const actualCanvasheight = paddingY * 2 + maxCoordinateY
+        let actualCanvasWidth = 0,
+            actualCanvasheight = 0
 
-        temp.forEach((item) => {
-            item.x += maxCoordinateX + paddingX
-            item.y += paddingY
+        const packing = (treeData: TreeData) => {
+            if (!data.find((item) => item.uuid == treeData.uuid)) {
+                actualCanvasWidth = Math.max(actualCanvasWidth, treeData.x)
+                actualCanvasheight = Math.max(actualCanvasheight, treeData.y)
+                data.push(treeData)
+                treeData.next.forEach((item) => packing(item))
+            }
+        }
+
+        packing(root as TreeData)
+
+        data.forEach((treeData) => {
+            treeData.x += paddingX
+            treeData.y += paddingY
         })
+
+        actualCanvasWidth += paddingX * 2 + nodeWidth
+        actualCanvasheight += paddingY * 2 + nodeHeight
 
         return {
-            data: temp,
+            data,
             canvasWidth: actualCanvasWidth,
             canvasHeight: actualCanvasheight,
         }
@@ -214,22 +222,19 @@ export default class StoryTree {
                 fill: 'red',
             })
             group.add(rect)
-            node.next.forEach((uuid) => {
-                const nextNode = this.data.find((item) => item.uuid == uuid)
-                if (nextNode) {
-                    const arrow = new Konva.Arrow({
-                        points: [
-                            node.x + node.width / 2,
-                            node.y + node.height,
-                            nextNode.x + nextNode.width / 2,
-                            nextNode.y,
-                        ],
-                        fill: 'black',
-                        stroke: 'black',
-                        strokeWidth: 4,
-                    })
-                    group.add(arrow)
-                }
+            node.next.forEach((nextNode) => {
+                const arrow = new Konva.Arrow({
+                    points: [
+                        node.x + node.width / 2,
+                        node.y + node.height,
+                        nextNode.x + nextNode.width / 2,
+                        nextNode.y,
+                    ],
+                    fill: 'black',
+                    stroke: 'black',
+                    strokeWidth: 4,
+                })
+                group.add(arrow)
             })
         })
     }

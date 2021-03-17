@@ -20,6 +20,24 @@ new StoryTree({
         uuid: '1',
         next: [
             {
+                uuid: '8',
+                next: [
+                    {
+                        uuid: '9',
+                        next: [
+                            {
+                                uuid: '10',
+                                next: [],
+                            },
+                            {
+                                uuid: '11',
+                                next: [],
+                            },
+                        ],
+                    },
+                ],
+            },
+            {
                 uuid: '2',
                 next: [node6],
             },
